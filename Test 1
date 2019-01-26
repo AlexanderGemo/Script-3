@@ -1,0 +1,70 @@
+Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, ServicePackMajorVersion, OSArchitecture, CSName, WindowDirectory | Out-File C:\Users\Steve\Desktop\.txt
+
+Get-Process | Format-Table id, name, starttime -autosize | Out-File C:\Users\Steve\Desktop\.txt
+
+Get-CimInstance win32_product | Select-Object Name, PackageName, InstallDate | format-table Name, PackageName, InstallDate | Out-File C:\Users\Steve\Desktop\.txt
+
+Gwmi Win32_Loggedonuser | Select Antecedent, Dependent | Out-File C:\Users\Steve\Desktop\.txt
+
+Get-NetIPConfiguration | Out-File C:\Users\Steve\Desktop\.txt
+
+Getmac | Out-File C:\Users\Steve\Desktop\.txt
+
+Get-NetRoute | Out-File C:\Users\Steve\Desktop\.txt
+
+ function Get-NetworkStatistics 
+    { 
+        $properties = ‘Protocol’,’LocalAddress’,’LocalPort’ 
+        $properties += ‘RemoteAddress’,’RemotePort’,’State’,’ProcessName’,’PID’
+
+        netstat -ano | Select-String -Pattern ‘\s+(TCP|UDP)’ | ForEach-Object {
+
+            $item = $_.line.split(” “,[System.StringSplitOptions]::RemoveEmptyEntries)
+
+            if($item[1] -notmatch ‘^\[::’) 
+            {            
+                if (($la = $item[1] -as [ipaddress]).AddressFamily -eq ‘InterNetworkV6’) 
+                { 
+                   $localAddress = $la.IPAddressToString 
+                   $localPort = $item[1].split(‘\]:’)[-1] 
+                } 
+                else 
+                { 
+                    $localAddress = $item[1].split(‘:’)[0] 
+                    $localPort = $item[1].split(‘:’)[-1] 
+                } 
+
+                if (($ra = $item[2] -as [ipaddress]).AddressFamily -eq ‘InterNetworkV6’) 
+                { 
+                   $remoteAddress = $ra.IPAddressToString 
+                   $remotePort = $item[2].split(‘\]:’)[-1] 
+                } 
+                else 
+                { 
+                   $remoteAddress = $item[2].split(‘:’)[0] 
+                   $remotePort = $item[2].split(‘:’)[-1] 
+                } 
+
+                New-Object PSObject -Property @{ 
+                    PID = $item[-1] 
+                    ProcessName = (Get-Process -Id $item[-1] -ErrorAction SilentlyContinue).Name 
+                    Protocol = $item[0] 
+                    LocalAddress = $localAddress 
+                    LocalPort = $localPort 
+                    RemoteAddress =$remoteAddress 
+                    RemotePort = $remotePort 
+                    State = if($item[0] -eq ‘tcp’) {$item[3]} else {$null} 
+                } | Select-Object -Property $properties 
+            } 
+        } 
+    }
+
+    Get-NetworkStatistics | Format-Table | Out-File C:\Users\Steve\Desktop\.txt
+
+
+Get-Process -IncludeUserName | Select-Object -Property username -Unique | Where-Object { $_ -notmatch 'SYSTEM|admin' } | Out-File C:\Users\Steve\Desktop\.txt
+
+Get-Service | format-table Displayname, Status,ServiceName | Out-File C:\Users\Steve\Desktop\.txt
+Get-NetTCPConnection | ? {$_.State -eq "Listen"} | Out-File C:\Users\Steve\Desktop\.txt
+Get-NetFirewallRule | Where { $_.Enabled –eq ‘True’ –and $_.Direction –eq ‘Inbound’ } | Out-File C:\Users\Steve\Desktop\.txt
+
